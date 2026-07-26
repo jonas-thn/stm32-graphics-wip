@@ -27,7 +27,6 @@
 #include "quadspi.h"
 #include "rtc.h"
 #include "sai.h"
-#include "sdmmc.h"
 #include "spdifrx.h"
 #include "spi.h"
 #include "tim.h"
@@ -72,6 +71,32 @@ static void MPU_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void WakeUp_SDRAM(void)
+{
+    extern SDRAM_HandleTypeDef hsdram1;
+    FMC_SDRAM_CommandTypeDef Command;
+
+    Command.CommandMode = FMC_SDRAM_CMD_CLK_ENABLE;
+    Command.CommandTarget = FMC_SDRAM_CMD_TARGET_BANK1;
+    Command.AutoRefreshNumber = 1;
+    Command.ModeRegisterDefinition = 0;
+    HAL_SDRAM_SendCommand(&hsdram1, &Command, 0xFFFF);
+    HAL_Delay(1);
+
+    Command.CommandMode = FMC_SDRAM_CMD_PALL;
+    HAL_SDRAM_SendCommand(&hsdram1, &Command, 0xFFFF);
+
+    Command.CommandMode = FMC_SDRAM_CMD_AUTOREFRESH_MODE;
+    Command.AutoRefreshNumber = 8;
+    HAL_SDRAM_SendCommand(&hsdram1, &Command, 0xFFFF);
+
+    Command.CommandMode = FMC_SDRAM_CMD_LOAD_MODE;
+    Command.ModeRegisterDefinition = 0x0220;
+    HAL_SDRAM_SendCommand(&hsdram1, &Command, 0xFFFF);
+
+    HAL_SDRAM_ProgramRefreshRate(&hsdram1, 0x0603);
+}
 
 /* USER CODE END 0 */
 
@@ -121,7 +146,6 @@ int main(void)
   MX_QUADSPI_Init();
   MX_RTC_Init();
   MX_SAI2_Init();
-  MX_SDMMC1_SD_Init();
   MX_SPDIFRX_Init();
   MX_SPI2_Init();
   MX_TIM1_Init();
@@ -135,6 +159,15 @@ int main(void)
   MX_USB_OTG_FS_USB_Init();
   MX_USB_OTG_HS_PCD_Init();
   /* USER CODE BEGIN 2 */
+//  WakeUp_SDRAM();
+
+  uint16_t* framebuffer = (uint16_t*)0xC0000000;
+  uint32_t pixel_count = 480 * 272;
+
+  for(uint32_t i = 0; i < pixel_count; i++)
+  {
+	  framebuffer[i] = 0xF800;
+  }
 
   /* USER CODE END 2 */
 
@@ -217,16 +250,15 @@ void PeriphCommonClock_Config(void)
   /** Initializes the peripherals clock
   */
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC|RCC_PERIPHCLK_SAI2
-                              |RCC_PERIPHCLK_SDMMC1|RCC_PERIPHCLK_CLK48;
+                              |RCC_PERIPHCLK_CLK48;
   PeriphClkInitStruct.PLLSAI.PLLSAIN = 384;
   PeriphClkInitStruct.PLLSAI.PLLSAIR = 5;
   PeriphClkInitStruct.PLLSAI.PLLSAIQ = 2;
   PeriphClkInitStruct.PLLSAI.PLLSAIP = RCC_PLLSAIP_DIV8;
   PeriphClkInitStruct.PLLSAIDivQ = 1;
-  PeriphClkInitStruct.PLLSAIDivR = RCC_PLLSAIDIVR_2;
+  PeriphClkInitStruct.PLLSAIDivR = RCC_PLLSAIDIVR_8;
   PeriphClkInitStruct.Sai2ClockSelection = RCC_SAI2CLKSOURCE_PLLSAI;
   PeriphClkInitStruct.Clk48ClockSelection = RCC_CLK48SOURCE_PLLSAIP;
-  PeriphClkInitStruct.Sdmmc1ClockSelection = RCC_SDMMC1CLKSOURCE_CLK48;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -250,15 +282,27 @@ void MPU_Config(void)
   */
   MPU_InitStruct.Enable = MPU_REGION_ENABLE;
   MPU_InitStruct.Number = MPU_REGION_NUMBER0;
-  MPU_InitStruct.BaseAddress = 0x0;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
+  MPU_InitStruct.BaseAddress = 0xC0000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_8MB;
   MPU_InitStruct.SubRegionDisable = 0x87;
   MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-  MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
   MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
   MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
   MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
   MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  /** Initializes and configures the Region and the memory to be protected
+  */
+  MPU_InitStruct.Number = MPU_REGION_NUMBER1;
+  MPU_InitStruct.BaseAddress = 0x0;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_32B;
+  MPU_InitStruct.SubRegionDisable = 0x0;
+  MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
   /* Enables the MPU */
