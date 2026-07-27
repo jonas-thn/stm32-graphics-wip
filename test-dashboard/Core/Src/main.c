@@ -72,32 +72,6 @@ static void MPU_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-void WakeUp_SDRAM(void)
-{
-    extern SDRAM_HandleTypeDef hsdram1;
-    FMC_SDRAM_CommandTypeDef Command;
-
-    Command.CommandMode = FMC_SDRAM_CMD_CLK_ENABLE;
-    Command.CommandTarget = FMC_SDRAM_CMD_TARGET_BANK1;
-    Command.AutoRefreshNumber = 1;
-    Command.ModeRegisterDefinition = 0;
-    HAL_SDRAM_SendCommand(&hsdram1, &Command, 0xFFFF);
-    HAL_Delay(1);
-
-    Command.CommandMode = FMC_SDRAM_CMD_PALL;
-    HAL_SDRAM_SendCommand(&hsdram1, &Command, 0xFFFF);
-
-    Command.CommandMode = FMC_SDRAM_CMD_AUTOREFRESH_MODE;
-    Command.AutoRefreshNumber = 8;
-    HAL_SDRAM_SendCommand(&hsdram1, &Command, 0xFFFF);
-
-    Command.CommandMode = FMC_SDRAM_CMD_LOAD_MODE;
-    Command.ModeRegisterDefinition = 0x0220;
-    HAL_SDRAM_SendCommand(&hsdram1, &Command, 0xFFFF);
-
-    HAL_SDRAM_ProgramRefreshRate(&hsdram1, 0x0603);
-}
-
 /* USER CODE END 0 */
 
 /**
@@ -159,15 +133,6 @@ int main(void)
   MX_USB_OTG_FS_USB_Init();
   MX_USB_OTG_HS_PCD_Init();
   /* USER CODE BEGIN 2 */
-//  WakeUp_SDRAM();
-
-  uint16_t* framebuffer = (uint16_t*)0xC0000000;
-  uint32_t pixel_count = 480 * 272;
-
-  for(uint32_t i = 0; i < pixel_count; i++)
-  {
-	  framebuffer[i] = 0xF800;
-  }
 
   /* USER CODE END 2 */
 
