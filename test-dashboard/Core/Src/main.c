@@ -116,10 +116,10 @@ int main(void)
   MX_DCMI_Init();
   MX_DMA2D_Init();
   MX_ETH_Init();
-  MX_FMC_Init();
+//  MX_FMC_Init();
   MX_I2C1_Init();
   MX_I2C3_Init();
-  MX_LTDC_Init();
+//  MX_LTDC_Init();
   MX_QUADSPI_Init();
   MX_RTC_Init();
   MX_SAI2_Init();
@@ -143,16 +143,22 @@ int main(void)
   BSP_LCD_SelectLayer(0);
   BSP_TS_Init(480, 272);
 
-  volatile uint16_t* framebuffer = (volatile uint16_t*)0xC0000000;
+  volatile uint32_t* framebuffer = (volatile uint32_t*)0xC0000000;
 
   for (uint32_t i = 0; i < (480 * 272); i++) {
-      framebuffer[i] = 0x0000;
+      framebuffer[i] = 0xFF000000;
   }
 
-  uint32_t x = 240;
-  uint32_t y = 136;
-  uint32_t index = (480 * y) + x;
-  framebuffer[index] = 0xF800;
+  uint32_t start_x = 230;
+  uint32_t start_y = 126;
+
+  for (volatile uint32_t y = start_y; y < start_y + 20; y++) {
+      for (volatile uint32_t x = start_x; x < start_x + 20; x++) {
+          uint32_t index = (480 * y) + x;
+          framebuffer[index] = 0xFFFF0000;
+      }
+  }
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
