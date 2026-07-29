@@ -148,12 +148,47 @@ int main(void) {
 
 	volatile uint32_t *framebuffer = (volatile uint32_t*) 0xC0000000;
 
-	CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-	DWT->LAR = 0xC5ACCE55;
-	DWT->CYCCNT = 0;
-	DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+	static uint32_t my_texture[30 * 30];
 
-	TS_StateTypeDef ts_state;
+	for (int y = 0; y < 30; y++) {
+		for (int x = 0; x < 30; x++) {
+			if (x == y || x == (29 - y)) {
+				my_texture[y * 30 + x] = 0xFFFFFFFF;
+			} else {
+				my_texture[y * 30 + x] = 0xFF0000FF;
+			}
+		}
+	}
+
+	__HAL_RCC_DMA2D_CLK_ENABLE();
+	DMA2D->CR = (3 << 16);
+	DMA2D->OCOLR = 0xFF000000;
+	DMA2D->OMAR = (uint32_t) framebuffer;
+	DMA2D->OOR = 0;
+	DMA2D->NLR = (272 << 16) | 480;
+	DMA2D->IFCR = 0x3F;
+	DMA2D->CR |= 1;
+	while ((DMA2D->ISR & (1 << 1)) == 0) {
+	}
+	DMA2D->IFCR = (1 << 1);
+
+	DMA2D->CR = 0;
+	DMA2D->FGMAR = (uint32_t) my_texture;
+	DMA2D->FGOR = 0;
+
+	uint32_t target_x = 225;
+	uint32_t target_y = 121;
+	uint32_t target_index = (480 * target_y) + target_x;
+
+	DMA2D->OMAR = (uint32_t) &framebuffer[target_index];
+	DMA2D->OOR = 480 - 30;
+	DMA2D->NLR = (30 << 16) | 30;
+
+	DMA2D->IFCR = 0x3F;
+	DMA2D->CR |= 1;
+	while ((DMA2D->ISR & (1 << 1)) == 0) {
+	}
+	DMA2D->IFCR = (1 << 1);
 
 	/* USER CODE END 2 */
 
@@ -161,52 +196,12 @@ int main(void) {
 	/* USER CODE BEGIN WHILE */
 	while (1) {
 
-		HAL_Delay(20);
-		BSP_TS_GetState(&ts_state);
-
-		if (ts_state.touchDetected) {
-			while (ts_state.touchDetected) {
-				HAL_Delay(20);
-				BSP_TS_GetState(&ts_state);
-			}
-
-			uint32_t start_time = 0;
-
-			start_time = DWT->CYCCNT;
-			for (uint32_t i = 0; i < (480 * 272); i++) {
-				framebuffer[i] = 0xFF000000;
-			}
-			cycles_cpu = DWT->CYCCNT - start_time;
-
-			start_time = DWT->CYCCNT;
-			BSP_LCD_Clear(0xFFFF0000);
-			cycles_bsp = DWT->CYCCNT - start_time;
-
-			__HAL_RCC_DMA2D_CLK_ENABLE();
-
-			DMA2D->CR = 0;  //reset cr
-			DMA2D->IFCR = 0x3F; //clear inetrrupt
-
-			start_time = DWT->CYCCNT;
-
-			DMA2D->CR = (3 << 16); //mode: reg to mem
-			DMA2D->OCOLR = 0xFF00FF00;
-			DMA2D->OMAR = 0xC0000000;
-			DMA2D->OOR = 0;
-			DMA2D->NLR = (272 << 16) | 480; //dimension
-			DMA2D->CR |= 1;
-			while (DMA2D->CR & 1) {
-			}
-			cycles_dma2d = DWT->CYCCNT - start_time;
-
-			HAL_Delay(200);
-		}
-		/* USER CODE END WHILE */
-
-		/* USER CODE BEGIN 3 */
 	}
-	/* USER CODE END 3 */
+	/* USER CODE END WHILE */
+
+	/* USER CODE BEGIN 3 */
 }
+/* USER CODE END 3 */
 
 /**
  * @brief System Clock Configuration
