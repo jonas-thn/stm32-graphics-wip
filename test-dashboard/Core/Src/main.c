@@ -79,6 +79,16 @@ static void MPU_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+volatile uint8_t dma2d_ready = 1;
+
+void DMA2D_IRQHandler(void) {
+	if (DMA2D->ISR & (1 << 1)) {
+		DMA2D->IFCR = (1 << 1);
+		(void)DMA2D->ISR;
+		dma2d_ready = 1;
+	}
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -146,6 +156,9 @@ int main(void) {
 	BSP_LCD_SelectLayer(0);
 	BSP_TS_Init(480, 272);
 
+	LTDC_Layer2->CR &= ~(1U);
+	LTDC->SRCR = (1U);
+
 	static uint32_t my_texture[30 * 30];
 
 	for (int y = 0; y < 30; y++) {
@@ -153,17 +166,20 @@ int main(void) {
 			if (x == y || x == (29 - y)) {
 				my_texture[y * 30 + x] = 0xFFFFFFFF;
 			} else {
-				my_texture[y * 30 + x] = 0xFF0000FF;
+				my_texture[y * 30 + x] = 0x800000FF;
 			}
 		}
 	}
 
 	__HAL_RCC_DMA2D_CLK_ENABLE();
 
+	HAL_NVIC_SetPriority(DMA2D_IRQn, 5, 0);
+	HAL_NVIC_EnableIRQ(DMA2D_IRQn);
+
 	uint32_t front_buffer = 0xC0000000;
 	uint32_t back_buffer = 0xC0080000;
 
-	uint32_t x_pos = 0;
+	int x_pos = 0;
 	int x_speed = 2;
 
 	/* USER CODE END 2 */
@@ -172,46 +188,50 @@ int main(void) {
 	/* USER CODE BEGIN WHILE */
 	while (1) {
 		DMA2D->CR = (3 << 16);
-		DMA2D->OCOLR = 0xFF000000;
+		DMA2D->OCOLR = 0xFF444444;
 		DMA2D->OMAR = back_buffer;
 		DMA2D->OOR = 0;
 		DMA2D->NLR = (272 << 16) | 480;
 
+		dma2d_ready = 0;
 		DMA2D->IFCR = 0x3F;
-		DMA2D->CR |= 1;
-		while ((DMA2D->ISR & (1 << 1)) == 0) {
-		}
-		DMA2D->IFCR = (1 << 1);
+
+		DMA2D->CR |= (1 << 9) | 1;
 
 		x_pos += x_speed;
 		if (x_pos >= (480 - 30) || x_pos <= 0) {
 			x_speed = -x_speed;
 		}
-
 		uint32_t target_y = 121;
 		uint32_t target_index = (480 * target_y) + x_pos;
+		uint32_t *back_buffer_ptr = (uint32_t*) back_buffer;
+		uint32_t target_address = (uint32_t) &back_buffer_ptr[target_index];
 
-		DMA2D->CR = 0;
+		while (!dma2d_ready) {
+		}
+
+		DMA2D->CR = (2 << 16);
 		DMA2D->FGMAR = (uint32_t) my_texture;
 		DMA2D->FGOR = 0;
+		DMA2D->FGPFCCR = 0x00000000;
 
-		uint32_t *back_buffer_ptr = (uint32_t*) back_buffer;
-		DMA2D->OMAR = (uint32_t) &back_buffer_ptr[target_index];
+		DMA2D->BGMAR = target_address;
+		DMA2D->BGOR = 480 - 30;
+		DMA2D->BGPFCCR = 0x00000000;
+
+		DMA2D->OMAR = target_address;
 		DMA2D->OOR = 480 - 30;
 		DMA2D->NLR = (30 << 16) | 30;
 
+		dma2d_ready = 0;
 		DMA2D->IFCR = 0x3F;
-		DMA2D->CR |= 1;
-		while ((DMA2D->ISR & (1 << 1)) == 0) {
+		DMA2D->CR |= (1 << 9) | 1;
+
+		while (!dma2d_ready) {
 		}
-		DMA2D->IFCR = (1 << 1);
 
-		//swap
 		LTDC_Layer1->CFBAR = back_buffer;
-
-
 		LTDC->SRCR = (1U << 1);
-
 		while ((LTDC->SRCR & (1U << 1)) != 0) {
 		}
 
