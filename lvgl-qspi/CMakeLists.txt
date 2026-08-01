@@ -1,3 +1,6 @@
+#cmake -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake
+#openocd -f interface/stlink.cfg -f target/stm32f7x.cfg -c "program build/lvgl-qspi.elf verify reset exit"
+
 cmake_minimum_required(VERSION 3.22)
 
 #
@@ -65,4 +68,11 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
 
     # Add user defined libraries
+)
+
+add_custom_target(flash
+    COMMAND openocd -f interface/stlink.cfg -f target/stm32f7x.cfg -c "program ${CMAKE_PROJECT_NAME}.elf verify reset exit"
+    DEPENDS ${CMAKE_PROJECT_NAME}.elf
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Flashing MCU via OpenOCD..."
 )
