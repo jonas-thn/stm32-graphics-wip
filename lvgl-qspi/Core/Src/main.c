@@ -47,6 +47,13 @@
 
 /* USER CODE BEGIN PV */
 
+/* Private variables ---------------------------------------------------------*/
+/* USER CODE BEGIN PV */
+
+const uint32_t qspi_test_zahl __attribute__((section(".qspi_data"))) = 0xDEADBEEF;
+
+/* USER CODE END PV */
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
