@@ -58,6 +58,7 @@ MEMORY
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 320K
 FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 64K
 QSPI_FLASH (rx): ORIGIN = 0x90000000, LENGTH = 16M
+SDRAM (xrw)    : ORIGIN = 0xC0000000, LENGTH = 16M
 }
 
 /* Highest address of the user mode stack */
@@ -246,6 +247,15 @@ SECTIONS
     *(.qspi_data*)
     . = ALIGN(4);
   } >QSPI_FLASH
+
+/* sdram */
+  .sdram_data (NOLOAD) :
+  {
+    . = ALIGN(4);
+    *(.sdram_data)
+    *(.sdram_data*)
+    . = ALIGN(4);
+  } >SDRAM
 
   /* Remove information from the standard libraries */
   /DISCARD/ :
