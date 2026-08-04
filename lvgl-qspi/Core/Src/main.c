@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "ltdc.h"
 #include "quadspi.h"
 #include "gpio.h"
 #include "fmc.h"
@@ -79,7 +80,7 @@ int main(void)
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
-  MPU_Config();
+  // MPU_Config();
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -101,6 +102,7 @@ int main(void)
   MX_GPIO_Init();
   MX_QUADSPI_Init();
   MX_FMC_Init();
+  MX_LTDC_Init();
   /* USER CODE BEGIN 2 */
 
   QSPI_CommandTypeDef sCommand = {0};
@@ -123,7 +125,13 @@ int main(void)
       Error_Handler();
   }
 
-  uint8_t test_byte = *(__IO uint8_t*)0x90000000;
+  uint16_t* framebuffer = (uint16_t*)0xC0000000;
+
+  uint32_t total_pixels = 480 * 272;
+
+  for (uint32_t i = 0; i < total_pixels; i++) {
+      framebuffer[i] = 0xF800; 
+  }
 
   /* USER CODE END 2 */
 
@@ -159,8 +167,8 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 12;
-  RCC_OscInitStruct.PLL.PLLN = 192;
+  RCC_OscInitStruct.PLL.PLLM = 25;
+  RCC_OscInitStruct.PLL.PLLN = 400;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
